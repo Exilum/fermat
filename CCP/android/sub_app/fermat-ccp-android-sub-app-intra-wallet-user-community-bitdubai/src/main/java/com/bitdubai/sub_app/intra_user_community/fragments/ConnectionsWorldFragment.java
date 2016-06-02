@@ -346,67 +346,80 @@ public class ConnectionsWorldFragment extends AbstractFermatFragment implements
         offset = 0;
         if (!isRefreshing) {
             isRefreshing = true;
-            worker = new FermatWorker() {
-                @Override
-                protected Object doInBackground() throws Exception {
-                    return getMoreData();
-                }
-            };
-            worker.setContext(getActivity());
-            worker.setCallBack(new FermatWorkerCallBack() {
-                @SuppressWarnings("unchecked")
-                @Override
-                public void onPostExecute(Object... result) {
-                    isRefreshing = false;
-                    if (swipeRefresh != null)
-                        swipeRefresh.setRefreshing(false);
-                    if (result != null &&
-                            result.length > 0) {
-                        if (getActivity() != null && adapter != null) {
-                            lstIntraUserInformations = (ArrayList<IntraUserInformation>) result[0];
-                            adapter.changeDataSet(lstIntraUserInformations);
-                            if (lstIntraUserInformations.isEmpty()) {
-                                //todo: no se lo que haces acá, esto tiene que ir en background y no deberia estar acá...
-                                try {
-                                     if(dataSet!=null) {
-                                        if (!dataSet.isEmpty()) {
-                                            lstIntraUserInformations.addAll(dataSet);
-                                            showEmpty(false, emptyView);
-                                            showEmpty(false, searchEmptyView);
+            try {
+                switch (getFermatNetworkStatus()) {
+                    case CONNECTED:
+                        // setUpReferences();
+                        worker = new FermatWorker() {
+                            @Override
+                            protected Object doInBackground() throws Exception {
+                                return getMoreData();
+                            }
+                        };
+                        worker.setContext(getActivity());
+                        worker.setCallBack(new FermatWorkerCallBack() {
+                            @SuppressWarnings("unchecked")
+                            @Override
+                            public void onPostExecute(Object... result) {
+                                isRefreshing = false;
+                                if (swipeRefresh != null)
+                                    swipeRefresh.setRefreshing(false);
+                                if (result != null &&
+                                        result.length > 0) {
+                                    if (getActivity() != null && adapter != null) {
+                                        lstIntraUserInformations = (ArrayList<IntraUserInformation>) result[0];
+                                        adapter.changeDataSet(lstIntraUserInformations);
+                                        if (lstIntraUserInformations.isEmpty()) {
+                                            //todo: no se lo que haces acá, esto tiene que ir en background y no deberia estar acá...
+                                            try {
+                                                if(dataSet!=null) {
+                                                    if (!dataSet.isEmpty()) {
+                                                        lstIntraUserInformations.addAll(dataSet);
+                                                        showEmpty(false, emptyView);
+                                                        showEmpty(false, searchEmptyView);
+                                                    } else {
+                                                        showEmpty(true, emptyView);
+                                                        showEmpty(false, searchEmptyView);
+                                                    }
+                                                }
+                                            } catch (Exception e) {
+                                                e.printStackTrace();
+                                            }
+
                                         } else {
-                                            showEmpty(true, emptyView);
+                                            showEmpty(false, emptyView);
                                             showEmpty(false, searchEmptyView);
                                         }
                                     }
-                                } catch (Exception e) {
-                                    e.printStackTrace();
+                                } else {
+                                    showEmpty(false, emptyView);
+                                    showEmpty(false, searchEmptyView);
+                                    lstIntraUserInformations.addAll(dataSet);
+
                                 }
-
-                            } else {
-                                showEmpty(false, emptyView);
-                                showEmpty(false, searchEmptyView);
                             }
-                        }
-                    } else {
-                            showEmpty(false, emptyView);
-                            showEmpty(false, searchEmptyView);
-                            lstIntraUserInformations.addAll(dataSet);
 
-                    }
+                            @Override
+                            public void onErrorOccurred(Exception ex) {
+                                isRefreshing = false;
+                                if (swipeRefresh != null)
+                                    swipeRefresh.setRefreshing(false);
+                                if (getActivity() != null)
+                                    Toast.makeText(getActivity(), ex.getMessage(), Toast.LENGTH_LONG).show();
+                                ex.printStackTrace();
+
+                            }
+                        });
+                        worker.execute();
+                        break;
+                    case DISCONNECTED:
+                        showErrorFermatNetworkDialog();
+                        break;
                 }
+            } catch (CantGetCommunicationNetworkStatusException e) {
+                e.printStackTrace();
+            }
 
-                @Override
-                public void onErrorOccurred(Exception ex) {
-                    isRefreshing = false;
-                    if (swipeRefresh != null)
-                        swipeRefresh.setRefreshing(false);
-                    if (getActivity() != null)
-                        Toast.makeText(getActivity(), ex.getMessage(), Toast.LENGTH_LONG).show();
-                    ex.printStackTrace();
-
-                }
-            });
-            worker.execute();
         }
     }
 
